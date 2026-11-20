@@ -47,11 +47,13 @@ Never ask the user to configure these unless the repo has conflicting convention
 
 **Core Principle:** `Improve Design` and `Review` are **equally important, independent first-class dials**. A deep design does not eliminate code review, and a heavy review does not excuse a sloppy design. Calibrate both independently from the task and codebase signals.
 
+**Complexity is per-change, never per-count.** N repos / N files / N commits receiving the *same* small edit are N executions of **one** task: score the single deepest instance once and write `同构复制 xN` in the banner. Repo, file, and commit counts are execution volume — they never raise `D` or `R`.
+
 ### Axis A: Design Uncertainty -> `Improve Design` Depth (`D0-D3`)
 
 Score +1 for each signal present:
-- Requirements or acceptance boundaries are ambiguous or have multiple valid approaches.
-- Change crosses module/service boundaries, alters public interfaces, or touches persistent schema/data formats.
+- Requirements or acceptance boundaries are ambiguous, have multiple valid approaches, or depend on an external system whose behaviour cannot be inspected.
+- Change crosses module/service boundaries, alters public interfaces, or touches persistent schema/data formats. (Score the deepest single change inside one repo; a byte-identical edit replicated across N repos counts **once**.)
 - Legacy Mode: target area has high coupling, hidden callers, or needs an isolation seam (Adapter/Facade/Flag).
 - Mistake in design would cause expensive rework or painful migration.
 
@@ -67,7 +69,7 @@ Score +1 for each signal present:
 Score +1 for each signal present:
 - Touches core business path, concurrency/async state, auth/security, or persistent storage/migrations.
 - Legacy Mode: target code lacks existing automated test coverage.
-- Expected diff spans multiple files/modules or modifies existing legacy functions in place (not isolated in a new module).
+- Expected diff spans multiple files/modules **within one repo** or modifies existing legacy functions in place (not isolated in a new module). The same small edit copied into N repos counts **once** — that is execution volume, not blast radius.
 - Upfront design was intentionally kept brief (`D0` or `D1`) so correctness relies more on implementation review.
 
 | Score | Level | Behavior in `dev-workflow:deep-review` |
@@ -126,3 +128,4 @@ If running on one of these harnesses, read its tool mapping reference in `refere
 | "I need a repo CLAUDE.md to know how to run" | Run Step 1 Zero-Config Repo Detection and decide yourself. |
 | "Let me just jump to `writing-plans` right after brainstorming" | Route through `save-design` -> `improving-design` (if `D >= 1`) first. |
 | "This old function is ugly, let me clean it up while I'm here" | Strict Scope Lock. Note the smell in the ledger/report; do not pollute the diff. |
+| "涉及 5 个仓库，所以至少要 D3/R3" | 仓库数只放大执行量。同构复制按**单仓最深那一处**定级，其余 N-1 份只算重复劳动。 |
