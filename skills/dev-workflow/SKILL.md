@@ -20,6 +20,7 @@ Every non-trivial engineering task is composed from up to 5 independent, atomic 
 3. **Improve Design** (`dev-workflow:improving-design`)
 4. **Impl** (`dev-workflow:legacy-impl` — wraps `dev-workflow:executing-plans` / `dev-workflow:subagent-driven-development`)
 5. **Review** (`dev-workflow:deep-review` — wraps `dev-workflow:requesting-code-review` / `dev-workflow:finishing-a-development-branch`)
+6. **Retro-Evolve *(Optional Periodic Node)*** (`dev-workflow:retro-evolve` — analyzes bounded rolling metrics in `~/.agent-plugins/dev-workflow-metrics.jsonl` to propose evidence-backed refinements to `custom/skills/`)
 
 **Atomic Rule:** Any node can be invoked standalone (e.g., "run Improve Design on `docs/designs/foo.md`", or "jump straight to Impl + Review for this small fix").
 
@@ -28,7 +29,7 @@ Ignore the rule in `dev-workflow:brainstorming` that forces jumping directly to 
 
 ## Step 1: Zero-Config Repo Detection (Run Silently First)
 
-Before asking questions or proposing a workflow, run a fast read-only probe of the current workspace:
+Before asking questions or proposing a workflow, run a **Fast Probe Cap (max 2-3 lightweight read-only commands)** — do NOT deep-read business source files in Step 1 (deep reading belongs inside Brainstorm or Impl):
 
 1. **Legacy / Brownfield vs. Greenfield:**
    - Check `git rev-list --count HEAD 2>/dev/null` and top-level source layout.
@@ -76,12 +77,19 @@ Score +1 for each signal present:
 | **2** | **R2** | **Key-checkpoint review + full whole-branch review** (adds legacy compatibility, dirty data, test coverage, PR Design attachment) |
 | **3-4** | **R3** | **Per-task dual review** (`subagent-driven-development`) + **Parallel Multi-Lens Whole-Branch Final Review** (Spec/Design + Legacy Regression/Diff Hygiene + Concurrency/Security/Rollback) |
 
-### Announce Calibration in One Line
+### Announce Calibration on Line 1 (First-Line Banner + Route)
 
-Immediately after Step 1 & Step 2, announce your calibration concisely before proceeding, e.g.:
-> 检测到历史仓库（Legacy Mode），本次建议深度：**Design D3（5 并发）+ Review R2（关键点 + 全分支终审）**（原因：涉及存量订单状态机且缺少单测）。默认按此推进，如需调整直接回复如 `D2 R3`。
+Immediately after Step 1 & Step 2 — **as the very first line of your first reply, before starting implementation or deep code reads** — output a compact calibration banner showing mode, `D/R` levels, scoring rationale, and explicit node route (including why any `D0` nodes are skipped), e.g.:
+> `[dev-workflow]` Legacy Mode | **Design D3 (5 并发) + Review R2** | 路线：`Brainstorm -> Save Design -> Improve Design -> Impl -> Review`（原因：涉及存量订单状态机且缺少单测；回复如 `D2 R3` 可随时调整）
+
+Or when `D0` skips design stages:
+> `[dev-workflow]` Legacy Mode | **Design D0 + Review R1** | 路线：`Impl -> Review`（跳过 Brainstorm/Save/Improve：单文件明确改动；若无表征测试将在 Review 前自动升档至 R2）
 
 If the user specifies levels explicitly (e.g. `"D3 R1"`, `"D0 R3"`, `"skip design"`), obey immediately without arguing.
+
+### Visible Stage Boundary Tag (Required on Todo-less Harnesses like Pi)
+
+Whenever entering a new atomic node, emit one visible single-line stage header at the start of your message (e.g. `[Stage: Brainstorm]`, `[Stage: Impl]`, `[Stage: Impl -> Review]`) so the user always sees crisp node transitions even when no todo UI is available.
 
 ## Step 3: Mid-Flight Escalation Rules (Automatic Depth Upgrade)
 

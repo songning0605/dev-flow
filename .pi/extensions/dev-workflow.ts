@@ -60,7 +60,7 @@ function getBootstrapContent(): string | null {
 		cachedBootstrap = `${EXTREMELY_IMPORTANT_MARKER}
 ${BOOTSTRAP_MARKER}
 
-You have the standalone 'dev-workflow' plugin active for Pi (zero external dependencies; all 17 skills are bundled under 'dev-workflow:').
+You have the standalone 'dev-workflow' plugin active for Pi (zero external dependencies; all 18 skills are bundled under 'dev-workflow:').
 
 The dev-workflow orchestrator skill is included below and is already loaded for this Pi session. Follow it now. Do not try to load dev-workflow again.
 

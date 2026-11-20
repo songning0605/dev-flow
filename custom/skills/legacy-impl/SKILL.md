@@ -52,7 +52,10 @@ Track these 3 boolean flags during implementation and pass them to `dev-workflow
 2. `DESIGN_DEVIATION`: Recorded one or more `Ruling:` entries deviating from the Design Doc.
 3. `NO_CHAR_TEST`: Modified existing legacy behavior without being able to add Characterization Tests.
 
-If **any** flag is true and current `R < 2`, `dev-workflow:deep-review` MUST auto-escalate.
+Note: If a legacy repo has **no test framework at all** and you modified existing behavior, `NO_CHAR_TEST` is strictly **`true`**.
+
+Before invoking `dev-workflow:deep-review`, you MUST print all 3 flags explicitly in one line so escalation is never dropped:
+`[Impl Exit] SCOPE_EXPANDED=<true|false> | DESIGN_DEVIATION=<true|false> | NO_CHAR_TEST=<true|false>`
 
 ## Handoff
 

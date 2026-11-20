@@ -5,6 +5,9 @@ Usage:
   # Sync from a local checkout of obra/superpowers (offline/local build):
   python3 scripts/sync-upstream.py --source /path/to/obra/superpowers
 
+  # Plan A local-only fast rebuild (apply custom/skills/ -> skills/ + test, offline, <1s):
+  python3 scripts/sync-upstream.py --local-only
+
   # Sync directly from GitHub upstream main (requires git & network):
   python3 scripts/sync-upstream.py
 """
@@ -58,12 +61,29 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Sync obra/superpowers into standalone dev-workflow plugin")
     parser.add_argument("--source", type=Path, default=None, help="Local path to obra/superpowers checkout")
     parser.add_argument("--commit", type=str, default=None, help="Commit SHA to record in upstream.lock")
-    parser.add_argument("--skip-tests", action="store_true", help="Skip running tests/test-plugin.sh")
+    parser.add_argument("--local-only", action="store_true", help="Overlay custom/skills/ onto skills/ and run tests without fetching upstream")
+    parser.add_argument("--skip-tests", action="store_true", help="Skip running tests/test_plugin.py")
     args = parser.parse_args()
 
     manifest = json.loads((PLUGIN_ROOT / "vendor-manifest.json").read_text(encoding="utf-8"))
     lock_path = PLUGIN_ROOT / "upstream.lock"
     lock_data = json.loads(lock_path.read_text(encoding="utf-8"))
+
+    if args.local_only:
+        skills_dir = PLUGIN_ROOT / "skills"
+        skills_dir.mkdir(parents=True, exist_ok=True)
+        custom_skills = PLUGIN_ROOT / "custom" / "skills"
+        for item in sorted(custom_skills.iterdir()):
+            if item.is_dir():
+                dst = skills_dir / item.name
+                if dst.exists():
+                    shutil.rmtree(dst)
+                shutil.copytree(item, dst)
+                print(f"Overlayed custom skill (local-only): {item.name}")
+        if not args.skip_tests:
+            test_script = PLUGIN_ROOT / "tests" / "test_plugin.py"
+            subprocess.run([sys.executable, str(test_script)], check=True)
+        return 0
 
     temp_dir = None
     try:

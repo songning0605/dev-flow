@@ -2,7 +2,7 @@
 
 一套**零外部依赖、不与业务项目绑定、开箱即用**的原子化研发流程单插件包（完整分层架构、双轴定档状态图与同步机制见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)）：
 
-- **无需单独安装 `obra/superpowers`**：按 MIT 协议精选整合 12 个核心底层 Skill 与辅助脚本，并全部重写为 `dev-workflow:` 命名空间（共 17 个内置 Skill）。
+- **无需单独安装 `obra/superpowers`**：按 MIT 协议精选整合 12 个核心底层 Skill 与辅助脚本，并全部重写为 `dev-workflow:` 命名空间（共 18 个内置 Skill）。
 - **5 个原子节点自由编排**：`Brainstorm` → `Save Design` → `Improve Design` → `Impl` → `Review`，任意节点均可单独触发。
 - **`Improve Design (D0–D3)` 与 `Review (R0–R3)` 双轴独立自判断**：自动探测历史项目（Legacy Mode）与新项目，开局一句话亮出档位，支持随时回复如 `D3 R2` 手调，且执行中遇风险自动升档。
 - **源码级历史项目改造**：内置 `brainstorming`（前置代码考古 + 解除强跳 `writing-plans`）、`implementer-prompt.md`（Strict Scope Lock 禁止顺手重构 + Commit 附 `Design:`）与 `finishing-a-development-branch`（PR 自动挂载 `## Design & Key Decisions`）。
@@ -54,7 +54,7 @@ default_subagent_reasoning_effort = "medium"
 ### 3. Cursor
 1. 打开 Cursor 的 Plugins 面板，点击 **+ Add → From Local Repository**。
 2. 选择 `dev-workflow` 根目录（内置 `.cursor-plugin/marketplace.json`、`.cursor-plugin/plugin.json` 与 `hooks/hooks-cursor.json`）。
-3. 启用后即可在任意项目自动触发 `SessionStart` 注入与全部 17 个技能。
+3. 启用后即可在任意项目自动触发 `SessionStart` 注入与全部 18 个技能。
 
 ### 4. Claude Code
 ```bash
@@ -79,11 +79,19 @@ python tests/test_plugin.py
 # 单独运行 Pi 扩展单测（需 Node >= 22.6）
 node --test tests/pi/test-pi-extension.mjs
 
+# 方案 A 日常微调：改完 custom/skills/ 后 1 秒离线生效并跑自检
+python scripts/sync-upstream.py --local-only
+
 # 随时一键拉取最新 obra/superpowers 并重新构建
 python scripts/sync-upstream.py
 ```
 
 **开启 GitHub 每周自动同步**：将本目录推到你的 GitHub 仓库，在 `Settings -> Actions -> General -> Workflow permissions` 开启 `Read and write permissions` 并勾选 `Allow GitHub Actions to create and approve pull requests`，即可每周一自动巡检 `obra/superpowers`、自动打补丁、跑测并提 PR（如上游改了补丁锚点会自动提 Issue 提醒）。
+
+## 受控自进化（方案 B）
+
+- **自动记录（零业务污染、防膨胀）**：每次 `deep-review` 收尾会通过 `scripts/log-metric.py` 向 `~/.agent-plugins/dev-workflow-metrics.jsonl` 追加 1 行白名单指标（硬上限 ≤500 字节，不存代码/diff）。
+- **按需复盘进化**：每攒够 10～15 个任务，发一句 `用 dev-workflow:retro-evolve 复盘最近 30 条记录并提出优化建议`，技能会自动遵守「≥2～3 次复现门槛 + 减法优先」，给出 `custom/skills/` 的 Diff 提案；经你确认后自动跑 `python scripts/sync-upstream.py --local-only` 全量校验并执行 `log-metric.py rotate` 滚动归档。
 
 ## 日常使用示例
 

@@ -36,10 +36,10 @@ def check_json_files() -> None:
 
 
 def check_skills_frontmatter() -> None:
-    print("=== 2. Validating all 17 bundled SKILL.md frontmatters ===")
+    print("=== 2. Validating all 18 bundled SKILL.md frontmatters ===")
     manifest = json.loads((PLUGIN_ROOT / "vendor-manifest.json").read_text(encoding="utf-8"))
     expected = sorted(set(manifest["vendored_skills"] + [
-        "dev-workflow", "save-design", "improving-design", "legacy-impl", "deep-review"
+        "dev-workflow", "save-design", "improving-design", "legacy-impl", "deep-review", "retro-evolve"
     ]))
     for skill in expected:
         path = PLUGIN_ROOT / "skills" / skill / "SKILL.md"
@@ -157,6 +157,50 @@ def check_codex_adaptation() -> None:
     print("OK: Codex App/CLI manifest, icons, codex-tools.md, and .gitattributes verified")
 
 
+
+def check_plan_b_evolution() -> None:
+    print("=== 8. Testing Plan B evolution (review-lenses, log-metric.py, retro-evolve) ===")
+    import tempfile
+    assert (PLUGIN_ROOT / "skills" / "deep-review" / "review-lenses.md").is_file()
+    assert "Fast Probe Cap" in (PLUGIN_ROOT / "skills" / "dev-workflow" / "SKILL.md").read_text(encoding="utf-8")
+    assert "[Handoff Gate]" in (PLUGIN_ROOT / "skills" / "deep-review" / "SKILL.md").read_text(encoding="utf-8")
+    assert (PLUGIN_ROOT / "skills" / "retro-evolve" / "SKILL.md").is_file()
+    logger = PLUGIN_ROOT / "scripts" / "log-metric.py"
+    assert logger.is_file()
+    with tempfile.TemporaryDirectory(prefix="dw_metrics_") as td:
+        mfile = Path(td) / "metrics.jsonl"
+        for i in range(4):
+            res = subprocess.run(
+                [
+                    sys.executable, str(logger), "--file", str(mfile), "log",
+                    "--repo-mode", "legacy",
+                    "--init-d", "D2", "--final-d", "D3",
+                    "--init-r", "R1", "--final-r", "R2",
+                    "--escalations", "SCOPE_EXPANDED",
+                    "--hit-perspectives", "free-form,legacy-compat",
+                    "--ruling-count", "1",
+                    "--friction-tags", "hidden-caller,legacy-mock",
+                ],
+                capture_output=True, text=True, encoding="utf-8", check=False,
+            )
+            assert res.returncode == 0, f"log-metric.py log failed: {res.stderr}"
+        tail_res = subprocess.run(
+            [sys.executable, str(logger), "--file", str(mfile), "tail", "-n", "2"],
+            capture_output=True, text=True, encoding="utf-8", check=False,
+        )
+        assert tail_res.returncode == 0
+        arr = json.loads(tail_res.stdout)
+        assert len(arr) == 2 and arr[-1]["final_d"] == "D3"
+        rot_res = subprocess.run(
+            [sys.executable, str(logger), "--file", str(mfile), "rotate", "--keep", "1"],
+            capture_output=True, text=True, encoding="utf-8", check=False,
+        )
+        assert rot_res.returncode == 0
+        remaining = [ln for ln in mfile.read_text(encoding="utf-8").splitlines() if ln.strip()]
+        assert len(remaining) == 1
+    print("OK: review-lenses.md, retro-evolve, and bounded log-metric.py (log/tail/rotate) passed")
+
+
 def main() -> int:
     check_json_files()
     check_skills_frontmatter()
@@ -165,6 +209,7 @@ def main() -> int:
     check_hooks()
     check_pi_extension()
     check_codex_adaptation()
+    check_plan_b_evolution()
     print("=== ALL STANDALONE CHECKS PASSED ===")
     return 0
 

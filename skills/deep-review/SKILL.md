@@ -9,14 +9,19 @@ description: Atomic Review & PR Delivery node with adjustable depth (R0-R3), aut
 
 Make `Review` a first-class, adjustable quality gate equal in importance to `Improve Design`, and ensure every PR carries its Design Doc and Decision Log for human reviewers.
 
-## Step 1: Check Auto-Escalation Before Reviewing
+## Step 1: Mandatory Visible `[Handoff Gate]` & Auto-Escalation
 
-Inspect the signals passed from `legacy-impl` (or run `git diff --name-only <BASE_SHA>..<HEAD_SHA>` against `DESIGN_PATH`):
-- If `SCOPE_EXPANDED`, `DESIGN_DEVIATION`, or `NO_CHAR_TEST` is true:
-  - `R0 -> R1`
-  - `R1 -> R2`
-  - `R2 -> R3` (if 2+ signals triggered)
-- Announce any escalation in one line: e.g. `触发自动升档：Review R1 -> R2（原因：修改了 Design 范围外的 2 个存量文件）。`
+**HARD RULE — Before dispatching ANY reviewer**, inspect the signals from `legacy-impl` (or `git diff --name-only <BASE_SHA>..<HEAD_SHA>`) and **print this exact gate line visibly**:
+
+```text
+[Handoff Gate] SCOPE_EXPANDED=<true|false> | DESIGN_DEVIATION=<true|false> | NO_CHAR_TEST=<true|false> => Effective Review: R<init> -> R<effective>
+```
+
+Escalation rules (non-negotiable):
+- If a legacy repo has **no test framework** and existing behavior was modified, `NO_CHAR_TEST` is **`true`** (lack of a test runner is the exact reason deeper review is needed, never an excuse to skip escalation).
+- If any 1 flag is `true`: `R0 -> R1`, `R1 -> R2`.
+- If 2+ flags are `true`: `R1 -> R2`, `R2 -> R3`.
+- Never dispatch an `R1` reviewer when `NO_CHAR_TEST=true`.
 
 ## Step 2: Execute Review by Depth (`R0-R3`)
 
@@ -33,7 +38,7 @@ Use `review-checklist.md` in this directory alongside `dev-workflow:requesting-c
   - Fix Critical/Important findings with failing-test-first proof; re-verify full suite.
 - **R3 (Deep Multi-Lens Review):**
   - Per-task reviews were already run if `subagent-driven-development` was used.
-  - Dispatch **3 parallel fresh read-only whole-branch reviewers** in one turn over `BASE_SHA..HEAD_SHA`:
+  - Dispatch **3 parallel fresh read-only whole-branch reviewers** in one turn over `BASE_SHA..HEAD_SHA` using the exact role templates in `review-lenses.md`:
     1. **Lens A — Design & Decision Compliance:** Verifies implementation matches `DESIGN_PATH` and every `Decision Log` / `Ruling:` entry.
     2. **Lens B — Legacy Regression & Diff Hygiene:** Audits diff scope lock, unintended edits to legacy code, backward compatibility, dirty/null data, and characterization tests.
     3. **Lens C — Concurrency, Security & Rollback Readiness:** Audits race conditions, error paths, security boundaries, migrations, and whether rollback actually works.
@@ -58,3 +63,20 @@ When creating the PR, always include a `## Design & Key Decisions` section in th
 ```
 
 Verify every commit or the PR body clearly links the design so reviewers never have to reverse-engineer intent from raw diffs.
+
+## Step 4: Log Bounded Workflow Metric (Plan B Evolution Input)
+
+After review and PR preparation finish, append **one** compact whitelisted metric line (<= 500 bytes, no code or diffs) to `~/.agent-plugins/dev-workflow-metrics.jsonl` using the plugin's `scripts/log-metric.py`:
+
+```bash
+python <plugin-root>/scripts/log-metric.py log \
+  --repo-mode <legacy|greenfield> \
+  --init-d <D0-D3> --final-d <D0-D3> \
+  --init-r <R0-R3> --final-r <R0-R3> \
+  --escalations "<comma-separated flags or empty>" \
+  --hit-perspectives "<comma-separated perspective IDs that produced Must-Fix/Trade-Off>" \
+  --ruling-count <N> \
+  --friction-tags "<0-3 short tags, <=32 chars each>"
+```
+
+Skip silently if the user opted out of metrics or if Python is unavailable. Never write business code, file paths, or raw user text into `friction-tags`.
