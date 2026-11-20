@@ -1,0 +1,22 @@
+{
+  "name": "dev-workflow",
+  "version": "1.0.0",
+  "description": "Standalone atomic R&D workflow plugin and Pi extension (Brainstorm -> Save Design -> Parallel Improve Design -> Legacy-Safe Impl -> Adjustable Deep Review)",
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "skills",
+    "workflow",
+    "design-review",
+    "legacy-code",
+    "tdd"
+  ],
+  "pi": {
+    "extensions": [
+      "./.pi/extensions/dev-workflow.ts"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "name": "dev-workflow",
+  "version": "1.0.0",
+  "description": "Standalone, zero-dependency atomic R&D workflow plugin (Brainstorm -> Save Design -> Parallel Improve Design -> Legacy-Safe Impl -> Adjustable Deep Review) tailored for legacy and greenfield repos.",
+  "author": {
+    "name": "Custom Workflow"
+  },
+  "license": "MIT",
+  "keywords": [
+    "workflow",
+    "brainstorming",
+    "design-review",
+    "parallel-agents",
+    "legacy-code",
+    "tdd",
+    "code-review",
+    "skills"
+  ],
+  "skills": "./skills/",
+  "hooks": {},
+  "interface": {
+    "displayName": "Dev Workflow",
+    "shortDescription": "Atomic Brainstorm -> Design -> Parallel Critique -> Impl -> Deep Review workflow",
+    "longDescription": "Self-contained R&D workflow with zero-config legacy repo detection, independent adjustable depth dials for parallel Improve Design (D0-D3) and Deep Review (R0-R3), Strict Scope Lock, and automatic PR Design traceability.",
+    "developerName": "Custom Workflow",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Let's design and implement a change in this repository.",
+      "Run Improve Design (D3) on my existing design document."
+    ],
+    "brandColor": "#1D4ED8",
+    "composerIcon": "./assets/dev-workflow-small.svg",
+    "logo": "./assets/app-icon.png",
+    "screenshots": []
+  }
+}

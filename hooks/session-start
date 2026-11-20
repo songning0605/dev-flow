@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# SessionStart hook for dev-workflow companion plugin.
+# Injects skills/dev-workflow/SKILL.md automatically without requiring per-repo CLAUDE.md/AGENTS.md.
+
+set -euo pipefail
+
+case "$0" in
+  */*|*\\*) SCRIPT_DIR="${0%[/\\]*}" ;;
+  *) SCRIPT_DIR="." ;;
+esac
+PLUGIN_ROOT="${SCRIPT_DIR}/.."
+
+skill_md="${PLUGIN_ROOT}/skills/dev-workflow/SKILL.md"
+workflow_content="Error reading dev-workflow skill"
+if [ -r "$skill_md" ]; then
+  IFS= read -r -d '' workflow_content < "$skill_md" || true
+  while [[ $workflow_content == *$'\n' ]]; do
+    workflow_content="${workflow_content%$'\n'}"
+  done
+fi
+
+escape_for_json() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    workflow_escaped="$s"
+}
+
+escape_for_json "$workflow_content"
+session_context="<EXTREMELY_IMPORTANT>\nYou have the standalone 'dev-workflow' plugin active (zero external dependencies; all core engineering skills are bundled under the 'dev-workflow:' namespace).\n\n**Below is the full content of 'dev-workflow' — your self-contained atomic workflow router and depth calibrator. It takes precedence over superpowers' default hard-coded stage transitions (such as brainstorming jumping directly to writing-plans). Invoke atomic skills via the Skill tool as directed:**\n\n${workflow_escaped}\n</EXTREMELY_IMPORTANT>"
+
+emit_json() {
+  trap '' PIPE
+  # shellcheck disable=SC2059
+  printf "$@" 2>/dev/null || true
+}
+
+if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
+  emit_json '{\n  "additional_context": "%s"\n}\n' "$session_context"
+elif [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -z "${COPILOT_CLI:-}" ] && [ -z "${MUSE_PLUGIN_ROOT:-}" ]; then
+  emit_json '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$session_context"
+else
+  emit_json '{\n  "additionalContext": "%s"\n}\n' "$session_context"
+fi
+
+exit 0

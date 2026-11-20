@@ -1,0 +1,20 @@
+{
+  "name": "dev-workflow-local",
+  "interface": {
+    "displayName": "Dev Workflow"
+  },
+  "plugins": [
+    {
+      "name": "dev-workflow",
+      "source": {
+        "source": "url",
+        "url": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

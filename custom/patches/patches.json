@@ -1,0 +1,37 @@
+[
+  {
+    "id": "brainstorming-steps-handoff",
+    "file": "skills/brainstorming/SKILL.md",
+    "description": "Route brainstorming post-consensus to save-design -> improving-design -> legacy-impl instead of hard-forcing writing-plans.",
+    "find": "2. Write the design doc, short or full (see Size the Work).\n3. Get their approval of that doc.\n4. Invoke the dev-workflow:writing-plans skill.",
+    "replace": "2. Hand off to `dev-workflow:save-design` to persist the design doc (short or full, with Legacy Current State, Seam, Blast Radius, Rollback, and Decision Log).\n3. If calibrated Design depth `D >= 1`, invoke `dev-workflow:improving-design` to run parallel N-agent codebase-grounded critique and update the Decision Log.\n4. Get their approval of the refined design doc, then invoke `dev-workflow:legacy-impl` (which invokes `dev-workflow:writing-plans` only when `R == 3` or multi-task breakdown is needed)."
+  },
+  {
+    "id": "brainstorming-legacy-archeology",
+    "file": "skills/brainstorming/SKILL.md",
+    "description": "Strengthen Look Before You Ask with explicit legacy codebase archeology.",
+    "find": "Read what they referred to and the code or material it\nconnects to, and keep reading until you can explain how the relevant\nparts work today and what this change would touch.",
+    "replace": "Read what they referred to and the code or material it\nconnects to, and keep reading until you can explain how the relevant\nparts work today and what this change would touch.\n\n**Legacy Archeology (mandatory in existing repos):** Before proposing approaches, trace callers/callees, implicit entry points (cron jobs, message queues, hooks, config, middleware), existing tests, and recent `git log` history around the target area. Explicitly list hidden invariants and legacy debt that MUST NOT be touched (Non-Goals)."
+  },
+  {
+    "id": "brainstorming-hard-gate",
+    "file": "skills/brainstorming/SKILL.md",
+    "description": "Decouple brainstorming HARD-GATE from forcing writing-plans directly.",
+    "find": "After the design doc is approved, the next step is the plan: invoke\ndev-workflow:writing-plans and no other skill.",
+    "replace": "After design consensus is reached, persist it with `dev-workflow:save-design`, refine it with `dev-workflow:improving-design` when `D >= 1`, and once approved proceed to `dev-workflow:legacy-impl` (which routes to inline execution or `dev-workflow:writing-plans` based on calibrated `D/R` depth)."
+  },
+  {
+    "id": "implementer-strict-scope-lock",
+    "file": "skills/subagent-driven-development/implementer-prompt.md",
+    "description": "Replace boy-scout refactoring with Strict Scope Lock and Design commit footer for legacy safety.",
+    "find": "    - In existing codebases, follow established patterns. Improve code you're touching\n      the way a good developer would, but don't restructure things outside your task.",
+    "replace": "    - **Strict Scope Lock (Legacy Safety):** In existing codebases, follow established\n      patterns and modify ONLY files explicitly scoped by the task brief/design doc.\n      Do NOT reformat untouched lines, rename unrelated legacy variables, or refactor\n      nearby legacy code. Record any discovered tech debt under Concerns in your report.\n    - **Design Traceability:** Include `Design: <path-or-url>` in every commit footer\n      when a design document path is provided."
+  },
+  {
+    "id": "finishing-branch-pr-design-link",
+    "file": "skills/finishing-a-development-branch/SKILL.md",
+    "description": "Ensure PR creation attaches Design Doc link, Decision Log summary, and Rollback strategy.",
+    "find": "Then create the pull/merge request against <base-branch> with the forge's\ntooling — its CLI if one is available, or the creation URL most forges\nprint when you push — following the repo's PR template and conventions if\npresent, and report the URL to your human partner.",
+    "replace": "Then create the pull/merge request against <base-branch> with the forge's\ntooling — its CLI if one is available, or the creation URL most forges\nprint when you push — following the repo's PR template and conventions if\npresent, and report the URL to your human partner.\n\n**Design Traceability in PR:** If this branch has a Design Doc (check `docs/designs/`, `docs/rfcs/`, `docs/superpowers/specs/`, or commit `Design:` footers), always include a `## Design & Key Decisions` section in the PR description containing: (1) clickable link or repo path to the Design Doc, (2) calibrated workflow depth (`D<x> / R<y>`), (3) 3-5 key decision bullets from the Decision Log, and (4) Blast Radius & Rollback summary."
+  }
+]

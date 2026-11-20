@@ -1,0 +1,16 @@
+{
+  "name": "dev-workflow",
+  "description": "Standalone, zero-dependency atomic R&D workflow plugin (Brainstorm -> Save Design -> Parallel Improve Design -> Legacy-Safe Impl -> Adjustable Deep Review) with vendored superpowers primitives and automated upstream sync.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Custom Workflow"
+  },
+  "license": "MIT",
+  "keywords": [
+    "workflow",
+    "superpowers",
+    "design-review",
+    "legacy-code",
+    "atomic-skills"
+  ]
+}
