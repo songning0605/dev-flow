@@ -159,7 +159,11 @@ def main() -> int:
 
     args = parser.parse_args()
     if args.cmd == "log":
-        append_entry(args.file, args)
+        try:
+            append_entry(args.file, args)
+        except ValueError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 1
     elif args.cmd == "tail":
         tail_entries(args.file, args.n)
     elif args.cmd == "rotate":

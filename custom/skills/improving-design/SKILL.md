@@ -57,11 +57,17 @@ Once all `N` agents return:
 - If there are only **Must-Fix** items (and they are clear), apply them directly or confirm briefly, then:
   1. Update `DESIGN_PATH` in place.
   2. Append every adopted change AND every intentionally rejected major suggestion to **Section 8: Decision Log** (so PR reviewers see what was considered and why).
-  3. Commit the refined design (if tracked in git):
+  3. **Re-run the design gate and refresh `Basis Hash`** (the hash covers Intent, Goals, Detailed Design, Verification and Scope Lock — all of which this step just edited, so the header hash is stale by construction):
+     ```bash
+     python <plugin-root>/scripts/check-design.py <DESIGN_PATH>
+     ```
+     Fix every reported `ERROR` (including any new `TBD` / placeholder introduced while refining), write the freshly printed `design_basis_hash` back into the header's `Basis Hash` field, then re-run once more to confirm `PASS`. Print the receipt: `[Design Gate] PASS | hash=<16-hex> | scope_files=<N>`.
+  4. Commit the refined design (if tracked in git):
      ```bash
      git add <DESIGN_PATH>
      git commit -m "docs(design): refine <topic> design (D<level>, <N>-agent review)"
      ```
+     (The gate must pass **before** this commit — never commit a design whose `Basis Hash` no longer matches its body.)
 
 ### 5. Optional Round 2 Convergence (`D3` Only)
 - If `D3` Round 1 caused a major architectural pivot (e.g., switched Approaches or changed core data contracts), offer ONE targeted Round 2 pass with 2 agents (`Free-Form` + `Legacy Compatibility`) to verify the new design has no fresh holes. Cap at 2 rounds total.

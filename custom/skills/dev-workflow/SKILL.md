@@ -9,11 +9,11 @@ description: Self-contained atomic R&D workflow orchestrator (Brainstorm -> Save
 If you were dispatched as a subagent to execute a specific review or implementation task, ignore this skill.
 </SUBAGENT-STOP>
 
-This skill is self-contained and project-independent. It does **not** depend on repository-level `CLAUDE.md` or `AGENTS.md` files. It coordinates five atomic nodes and bundles all required core engineering skills under `dev-workflow:` with zero external plugin dependencies.
+This skill is self-contained and project-independent. It does **not** depend on repository-level `CLAUDE.md` or `AGENTS.md` files. It coordinates five core atomic nodes (plus the optional `Retro-Evolve` node) and bundles all required core engineering skills under `dev-workflow:` with zero external plugin dependencies.
 
-## The 5 Atomic Nodes
+## The 6 Atomic Nodes (5 core + 1 optional)
 
-Every non-trivial engineering task is composed from up to 5 independent, atomic nodes:
+Every non-trivial engineering task is composed from up to 6 independent, atomic nodes (the 6th, `Retro-Evolve`, is optional and periodic):
 
 1. **Brainstorm** (`dev-workflow:brainstorming` + Legacy Archeology rules below)
 2. **Save Design** (`dev-workflow:save-design`)
@@ -41,7 +41,7 @@ Before asking questions or proposing a workflow, run a **Fast Probe Cap (max 2-3
 3. **PR & Test Conventions:**
    - Check for `.github/PULL_REQUEST_TEMPLATE.md` (or `.gitlab/merge_request_templates/`) and the project's test runner.
 4. **4-Class Intent & Deterministic Fast Recon *(Graded Gate: `D0/R0` exempt; `D >= 1`, `R >= 1`, or `Legacy Mode` mandatory)*:**
-   - Exempt when calibrated `D0` and `R0` (trivial 1-file/known-path edit).
+   - Exempt when the change is obviously a single-file / known-path micro-edit (i.e. what Step 2 will calibrate to `D0/R0`); otherwise treat recon as mandatory.
    - Otherwise, you **MUST** run `python <plugin-root>/scripts/repo-recon.py --repo . --query "<user request>"` and print one visible receipt line: `[Recon Gate] intent=<bug|feature|refactor|analysis> | scanned=<N> | scope=<dirs>` (emit `[Recon Gate] SKIP (no python)` **only** if Python 3 is genuinely unavailable).
    - Route by classified intent:
      - **`bug`**: route through `dev-workflow:systematic-debugging` root-cause reproduction before fixing.

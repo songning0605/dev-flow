@@ -27,6 +27,25 @@ PLACEHOLDER_PATTERNS = [
 
 SQUASH_RE = re.compile(r"[\s，。！？；、,.!?;:：\"'“”‘’（）()\[\]【】<>《》\-—_~·`]+")
 BACKTICK_PATH_RE = re.compile(r"`([^`\n]+)`")
+LINE_SUFFIX_RE = re.compile(r":\d+(?:-\d+)?$")
+FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
+UNFILLED_BASIS_HASH = "<populated by check-design.py>"
+
+
+def normalize_scope_path(raw: str) -> str:
+    """Normalize a Scope Lock path so it compares equal to `git diff` output.
+
+    Handles Windows separators, leading `./`, and line-range suffixes
+    (`src/orders/foo.py:120-145`) that designers add for precision.
+    """
+    raw_val = (raw or "").strip()
+    root_relative = raw_val.startswith(".") or raw_val.startswith("\\")
+    val = raw_val.replace("\\", "/")
+    while val.startswith("./"):
+        val = val[2:]
+    if root_relative and val.startswith("/"):
+        val = val[1:]
+    return LINE_SUFFIX_RE.sub("", val)
 
 
 def squash_text(value: str) -> str:
@@ -94,18 +113,18 @@ def extract_scope_files(design_section_body: str) -> List[str]:
         if re.search(r"Files to (Create|Modify)|文件改动|文件变更|文件修改|范围锁定|Scope Lock", line, re.I):
             in_scope_block = True
             for match in BACKTICK_PATH_RE.findall(line):
-                val = match.strip()
-                if val and val != "..." and ("/" in val or "." in val):
-                    files.append(val)
+                raw = match.strip()
+                if raw and raw != "..." and ("/" in raw or "." in raw):
+                    files.append(normalize_scope_path(raw))
             continue
         if in_scope_block:
             if re.match(r"^\s*-\s+\*\*", line) and not re.search(r"Files to (Create|Modify)|文件改动|文件变更|文件修改|范围锁定|Scope Lock", line, re.I):
                 in_scope_block = False
                 continue
             for match in BACKTICK_PATH_RE.findall(line):
-                val = match.strip()
-                if val and val != "..." and ("/" in val or "." in val):
-                    files.append(val)
+                raw = match.strip()
+                if raw and raw != "..." and ("/" in raw or "." in raw):
+                    files.append(normalize_scope_path(raw))
     seen = set()
     ordered = []
     for f in files:
@@ -175,10 +194,33 @@ def check_design_file(path: Path, raw_request: str = "", mode_override: Optional
     if mode == "legacy" and rollback_body and not re.search(r"rollback|回滚", rollback_body, re.I):
         errors.append("Legacy Mode requires an explicit Rollback Strategy.")
 
-    # Check placeholder tokens anywhere in the file
+    # Check placeholder tokens anywhere in the file, skipping fenced code blocks
+    # (design docs legitimately quote `...` / `TODO` inside code examples).
+    fence_marker: Optional[str] = None
+    fence_line = 0
     for idx, ln in enumerate(text.splitlines(), start=1):
-        if any(p.search(ln) for p in PLACEHOLDER_PATTERNS):
+        fence = FENCE_RE.match(ln)
+        if fence:
+            marker = fence.group(1)
+            if fence_marker is None:
+                fence_marker, fence_line = marker, idx
+            elif marker[0] == fence_marker[0] and len(marker) >= len(fence_marker):
+                fence_marker = None
+            continue
+        if fence_marker is not None:
+            continue
+        if UNFILLED_BASIS_HASH in ln:
+            errors.append(
+                f"Line {idx}: Basis Hash was never populated by check-design.py; "
+                "write the computed hash into the header."
+            )
+        elif any(p.search(ln) for p in PLACEHOLDER_PATTERNS):
             warnings.append(f"Line {idx} looks like an unfilled placeholder: {ln.strip()[:80]}")
+    if fence_marker is not None:
+        warnings.append(
+            f"Unclosed code fence opened at line {fence_line}; "
+            "placeholder scan was truncated after it."
+        )
 
     _, design_body = find_section(sections, "detailed design")
     scope_files = extract_scope_files(design_body)
@@ -186,6 +228,18 @@ def check_design_file(path: Path, raw_request: str = "", mode_override: Optional
         warnings.append("No concrete file paths found under 'Files to Create / Files to Modify (Scope Lock)' (范围锁定).")
 
     basis_hash = compute_design_basis_hash(sections, scope_files)
+
+    # The header hash must match the body, otherwise a refined design keeps a stale stamp.
+    header = re.search(r"\*\*Basis Hash:\*\*\s*`?([^`\n]*)`?", text)
+    if header:
+        header_hash = header.group(1).strip()
+        if not header_hash:
+            errors.append("Basis Hash header is empty; write the hash printed by check-design.py.")
+        elif header_hash != UNFILLED_BASIS_HASH and header_hash != basis_hash:
+            errors.append(
+                f"Header Basis Hash `{header_hash}` is stale: the design body currently hashes to `{basis_hash}`."
+            )
+
     return {
         "ok": len(errors) == 0,
         "path": str(path),

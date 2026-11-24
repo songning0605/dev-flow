@@ -198,7 +198,25 @@ def check_plan_b_evolution() -> None:
         assert rot_res.returncode == 0
         remaining = [ln for ln in mfile.read_text(encoding="utf-8").splitlines() if ln.strip()]
         assert len(remaining) == 1
-    print("OK: review-lenses.md, retro-evolve, and bounded log-metric.py (log/tail/rotate) passed")
+
+        # Negative cases: cross-field invariants must fail cleanly (rc=1, one-line ERROR, no traceback)
+        bad_cases = [
+            ("D0 with perspectives", ["--init-d", "D0", "--final-d", "D0", "--init-r", "R0", "--final-r", "R0", "--hit-perspectives", "free-form"], "final-d=D0"),
+            ("D1 with yagni", ["--init-d", "D1", "--final-d", "D1", "--init-r", "R0", "--final-r", "R0", "--hit-perspectives", "yagni"], "final-d=D1"),
+            ("D_ESCALATED without escalation", ["--init-d", "D2", "--final-d", "D2", "--init-r", "R1", "--final-r", "R1", "--escalations", "D_ESCALATED"], "D_ESCALATED requires"),
+            ("SCOPE_EXPANDED with downgrade", ["--init-d", "D1", "--final-d", "D1", "--init-r", "R2", "--final-r", "R1", "--escalations", "SCOPE_EXPANDED"], "requires final-r >= init-r"),
+        ]
+        for label, extra, expected in bad_cases:
+            bad = subprocess.run(
+                [sys.executable, str(logger), "--file", str(Path(td) / "bad.jsonl"), "log", "--repo-mode", "legacy", *extra],
+                capture_output=True, text=True, encoding="utf-8", check=False,
+            )
+            assert bad.returncode == 1, f"{label}: expected rc=1, got {bad.returncode}"
+            assert "Traceback" not in bad.stderr, f"{label}: raw traceback leaked to stderr"
+            assert bad.stderr.count("ERROR:") == 1, f"{label}: expected one clean ERROR line, got {bad.stderr!r}"
+            assert expected in bad.stderr, f"{label}: the wrong invariant fired ({bad.stderr.strip()})"
+            assert not (Path(td) / "bad.jsonl").exists(), f"{label}: invalid metric was still written"
+    print("OK: review-lenses.md, retro-evolve, and bounded log-metric.py (log/tail/rotate + 4 invariant rejections) passed")
 
 
 
@@ -257,6 +275,42 @@ def check_dsh_fusion_tools() -> None:
         gdata = json.loads(good_res.stdout)
         assert gdata["ok"] is True and len(gdata["design_basis_hash"]) == 16
         assert "src/orders/payment_guard.py" in gdata["scope_files"]
+
+        # 9.2b check-design.py: Scope Lock paths are normalized (Windows separators,
+        # leading ./ and line-range suffixes) so gen-report.py cannot false-flag them;
+        # placeholders inside fenced code blocks are not warnings.
+        norm_design = repo / "norm-design.md"
+        norm_design.write_text(
+            good_design.read_text(encoding="utf-8").replace(
+                "- **Files to Modify (Scope Lock):** `src/orders/payment_guard.py`",
+                "- **Files to Modify (Scope Lock):** `src/orders/payment_guard.py:120-145` `./src/orders/payment_guard.py` "
+                "`\\src\\orders\\payment_guard.py`\n"
+                "```python\n# TODO: placeholder inside a code fence -> must NOT warn\n...\n```",
+            ),
+            encoding="utf-8",
+        )
+        norm_res = subprocess.run(
+            [sys.executable, str(PLUGIN_ROOT / "scripts" / "check-design.py"), str(norm_design), "--json"],
+            capture_output=True, text=True, encoding="utf-8", check=True,
+        )
+        ndata = json.loads(norm_res.stdout)
+        assert ndata["scope_files"] == ["src/orders/payment_guard.py"], ndata["scope_files"]
+        assert ndata["ok"] is True
+        assert not [w for w in ndata["warnings"] if "placeholder" in w], ndata["warnings"]
+
+        # 9.2c a stale/never-refreshed header Basis Hash must fail the gate (this is what
+        # makes improving-design's "refresh before commit" rule enforceable).
+        stale_hash_design = repo / "stale-hash-design.md"
+        stale_hash_design.write_text(
+            "# Design: Stale\n- **Mode:** Legacy\n- **Basis Hash:** `deadbeefdeadbeef`\n"
+            + norm_design.read_text(encoding="utf-8").split("\n", 1)[1],
+            encoding="utf-8",
+        )
+        stale_res = subprocess.run(
+            [sys.executable, str(PLUGIN_ROOT / "scripts" / "check-design.py"), str(stale_hash_design)],
+            capture_output=True, text=True, encoding="utf-8", check=False,
+        )
+        assert stale_res.returncode == 1 and "stale" in stale_res.stdout, stale_res.stdout
 
         # 9.3 verify-basis.py & gen-report.py in a real temp git repo
         subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True)
