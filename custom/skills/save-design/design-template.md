@@ -7,6 +7,8 @@
 - **Basis Hash:** `<populated by check-design.py>`
 - **Status:** Draft | Refined | Approved
 
+> 章节标题可中英任意：`## 1. 意图与原因`、`## 2. 目标与非目标`、`## 3. 现状与隔离接缝`、`## 4. 候选方案`、`## 5. 详细设计与接口`、`## 6. 影响面、兼容性与回滚`、`## 7. 验证与测试策略` 与下方英文标题等价（`check-design.py` 同义映射）。
+
 ## 1. Intent & Why
 What problem are we solving and why now? What does success look like?
 

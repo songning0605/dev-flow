@@ -22,6 +22,21 @@ from typing import Dict, Optional
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
+_NOISE_FILTER = None
+
+
+def is_noise_path(rel: str) -> bool:
+    """Reuse gen-report.py's single noise definition (.DS_Store, dist/, node_modules/, ...)."""
+    global _NOISE_FILTER
+    if _NOISE_FILTER is None:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("gen_report", SCRIPT_DIR / "gen-report.py")
+        assert spec and spec.loader
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _NOISE_FILTER = mod.is_noise_path
+    return bool(_NOISE_FILTER(rel))
+
 
 def compute_design_hash(design_path: Optional[Path]) -> str:
     if design_path is None or not design_path.is_file():
@@ -58,6 +73,8 @@ def compute_repo_fingerprint(repo: Path, design_path: Optional[Path]) -> Dict[st
     code_hasher.update(b"\0")
     code_hasher.update(diff_unstaged.encode("utf-8"))
     for rel in sorted(ln.strip() for ln in untracked.splitlines() if ln.strip()):
+        if is_noise_path(rel):
+            continue
         p = repo / rel
         if p.is_file() and p.stat().st_size <= 512 * 1024:
             code_hasher.update(b"\0FILE:")
@@ -86,6 +103,10 @@ def default_state_file(repo: Path) -> Path:
 
 
 def main() -> int:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
     parser = argparse.ArgumentParser(description="Verification basis-hash staleness guard")
     sub = parser.add_subparsers(dest="action", required=True)
 

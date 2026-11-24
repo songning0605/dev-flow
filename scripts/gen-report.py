@@ -160,6 +160,10 @@ def generate_report(
 
 
 def main() -> int:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
     parser = argparse.ArgumentParser(description="Generate noise-filtered delivery report & Scope-Lock audit")
     parser.add_argument("--repo", type=Path, default=Path("."))
     parser.add_argument("--base", type=str, required=True)

@@ -197,6 +197,21 @@ def pick_narrow_scope(files: List[Dict[str, object]], max_dirs: int = 4) -> List
     return chosen
 
 
+def detect_workspace(repo: Path) -> List[str]:
+    """Return immediate sub-directories that are independent git repos (multi-repo workspace)."""
+    repos: List[str] = []
+    try:
+        entries = sorted(os.scandir(repo), key=lambda e: e.name)
+    except OSError:
+        return repos
+    for entry in entries:
+        if entry.name.startswith(".") or not entry.is_dir(follow_symlinks=False):
+            continue
+        if (Path(entry.path) / ".git").exists():
+            repos.append(entry.name)
+    return repos
+
+
 def recon_repo(repo: Path, query: str, max_files: int = 15, max_matches_per_file: int = 3) -> Dict[str, object]:
     intent = detect_intent(query)
     tokens = extract_tokens(query)
@@ -208,6 +223,7 @@ def recon_repo(repo: Path, query: str, max_files: int = 15, max_matches_per_file
         "effective_tokens": [],
         "scanned": 0,
         "truncated": False,
+        "workspace_repos": detect_workspace(repo),
         "suggested_scope": [],
         "files": [],
     }
@@ -295,6 +311,15 @@ def format_markdown(res: Dict[str, object]) -> str:
         f"Intent: {res['intent']} | Scanned: {res['scanned']} files | Suggested Scope: {', '.join(res['suggested_scope']) or '(none)'}",
         f"Effective Tokens: {', '.join(res['effective_tokens']) or '(none)'}",
     ]
+    if res.get("truncated"):
+        lines.append("TRUNCATED: scan hit the built-in 4000-file cap — treat this receipt as a partial sample.")
+    workspace_repos = res.get("workspace_repos") or []
+    if workspace_repos:
+        shown = ", ".join(workspace_repos[:8]) + (" …" if len(workspace_repos) > 8 else "")
+        lines.append(
+            f"WORKSPACE: {len(workspace_repos)} independent git repos detected ({shown}); "
+            "rerun with --repo <repo> for an accurate scope."
+        )
     files = res["files"]
     if not files:
         lines.append("Candidate Files: (none matched)")
@@ -308,6 +333,10 @@ def format_markdown(res: Dict[str, object]) -> str:
 
 
 def main() -> int:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
     parser = argparse.ArgumentParser(description="Deterministic local repository fast recon + intent classifier")
     parser.add_argument("--repo", type=Path, default=Path("."), help="Repository root directory")
     parser.add_argument("--query", type=str, required=True, help="User task description")

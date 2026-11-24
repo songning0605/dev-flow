@@ -62,10 +62,22 @@ def parse_sections(markdown: str) -> Dict[str, str]:
     return sections
 
 
+SECTION_ALIASES: Dict[str, Tuple[str, ...]] = {
+    "intent": ("intent", "意图", "动机"),
+    "goals": ("goals", "目标"),
+    "approaches": ("approaches", "方案"),
+    "detailed design": ("detailed design", "详细设计"),
+    "verification": ("verification", "验证"),
+    "current state": ("current state", "现状"),
+    "blast radius": ("blast radius", "影响面", "影响范围"),
+}
+
+
 def find_section(sections: Dict[str, str], keyword: str) -> Tuple[Optional[str], str]:
-    kw = keyword.lower()
+    aliases = SECTION_ALIASES.get(keyword.lower(), (keyword.lower(),))
     for heading, body in sections.items():
-        if kw in heading.lower():
+        lowered = heading.lower()
+        if any(alias in lowered for alias in aliases):
             return heading, body
     return None, ""
 
@@ -79,7 +91,7 @@ def extract_scope_files(design_section_body: str) -> List[str]:
     files: List[str] = []
     in_scope_block = False
     for line in design_section_body.splitlines():
-        if re.search(r"Files to (Create|Modify)", line, re.I):
+        if re.search(r"Files to (Create|Modify)|文件改动|文件变更|文件修改|范围锁定|Scope Lock", line, re.I):
             in_scope_block = True
             for match in BACKTICK_PATH_RE.findall(line):
                 val = match.strip()
@@ -87,7 +99,7 @@ def extract_scope_files(design_section_body: str) -> List[str]:
                     files.append(val)
             continue
         if in_scope_block:
-            if re.match(r"^\s*-\s+\*\*", line) and not re.search(r"Files to (Create|Modify)", line, re.I):
+            if re.match(r"^\s*-\s+\*\*", line) and not re.search(r"Files to (Create|Modify)|文件改动|文件变更|文件修改|范围锁定|Scope Lock", line, re.I):
                 in_scope_block = False
                 continue
             for match in BACKTICK_PATH_RE.findall(line):
@@ -156,11 +168,11 @@ def check_design_file(path: Path, raw_request: str = "", mode_override: Optional
 
     # Check Non-Goals and Rollback specifics in legacy mode
     _, goals_body = find_section(sections, "goals")
-    if goals_body and not re.search(r"non-goals", goals_body, re.I):
+    if goals_body and not re.search(r"non-goals|非目标", goals_body, re.I):
         warnings.append("Goals section should explicitly declare Non-Goals.")
 
     _, rollback_body = find_section(sections, "blast radius")
-    if mode == "legacy" and rollback_body and not re.search(r"rollback", rollback_body, re.I):
+    if mode == "legacy" and rollback_body and not re.search(r"rollback|回滚", rollback_body, re.I):
         errors.append("Legacy Mode requires an explicit Rollback Strategy.")
 
     # Check placeholder tokens anywhere in the file
@@ -171,7 +183,7 @@ def check_design_file(path: Path, raw_request: str = "", mode_override: Optional
     _, design_body = find_section(sections, "detailed design")
     scope_files = extract_scope_files(design_body)
     if mode == "legacy" and not scope_files:
-        warnings.append("No concrete file paths found under 'Files to Create / Files to Modify (Scope Lock)'.")
+        warnings.append("No concrete file paths found under 'Files to Create / Files to Modify (Scope Lock)' (范围锁定).")
 
     basis_hash = compute_design_basis_hash(sections, scope_files)
     return {
@@ -186,6 +198,10 @@ def check_design_file(path: Path, raw_request: str = "", mode_override: Optional
 
 
 def main() -> int:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
     parser = argparse.ArgumentParser(description="Validate a dev-workflow Design Doc and compute design_basis_hash")
     parser.add_argument("design_path", type=Path, help="Path to design markdown file")
     parser.add_argument("--raw", type=str, default="", help="Original user request (for raw-echo detection)")

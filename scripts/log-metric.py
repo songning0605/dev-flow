@@ -13,6 +13,7 @@ import datetime as dt
 import json
 import sys
 from pathlib import Path
+from typing import List
 
 DEFAULT_LOG = Path.home() / ".agent-plugins" / "dev-workflow-metrics.jsonl"
 MAX_LINE_BYTES = 500
@@ -20,7 +21,36 @@ VALID_MODES = {"legacy", "greenfield"}
 VALID_D = {"D0", "D1", "D2", "D3"}
 VALID_R = {"R0", "R1", "R2", "R3"}
 VALID_ESCALATIONS = {"D_ESCALATED", "SCOPE_EXPANDED", "DESIGN_DEVIATION", "NO_CHAR_TEST"}
-VALID_PERSPECTIVES = {"free-form", "legacy-compat", "minimal-diff", "testability", "yagni"}
+# Order = dispatch order in improving-design/perspectives.md (D1: 1-2, D2: 1-3, D3: 1-5)
+PERSPECTIVE_ORDER = ("free-form", "legacy-compat", "minimal-diff", "testability", "yagni")
+VALID_PERSPECTIVES = set(PERSPECTIVE_ORDER)
+D_PERSPECTIVE_LIMIT = {"D0": 0, "D1": 2, "D2": 3, "D3": len(PERSPECTIVE_ORDER)}
+D_ORDER = ("D0", "D1", "D2", "D3")
+R_ORDER = ("R0", "R1", "R2", "R3")
+R_ESCALATION_FLAGS = {"SCOPE_EXPANDED", "DESIGN_DEVIATION", "NO_CHAR_TEST"}
+
+
+def check_cross_field_invariants(
+    init_d: str, final_d: str, init_r: str, final_r: str,
+    escalations: List[str], perspectives: List[str],
+) -> None:
+    """3 absolute invariants (no deeper cross-checking)."""
+    if final_d == "D0" and perspectives:
+        raise ValueError("final-d=D0 skips Improve Design, so hit-perspectives must be empty")
+    allowed = PERSPECTIVE_ORDER[: D_PERSPECTIVE_LIMIT[final_d]]
+    disallowed = [p for p in perspectives if p not in allowed]
+    if disallowed:
+        raise ValueError(
+            f"hit-perspectives {disallowed} are not dispatched at final-d={final_d} "
+            f"(allowed: {', '.join(allowed) or 'none'})"
+        )
+    if "D_ESCALATED" in escalations and D_ORDER.index(final_d) <= D_ORDER.index(init_d):
+        raise ValueError(f"D_ESCALATED requires final-d > init-d, got {init_d} -> {final_d}")
+    r_flags = R_ESCALATION_FLAGS & set(escalations)
+    if r_flags and R_ORDER.index(final_r) < R_ORDER.index(init_r):
+        raise ValueError(
+            f"review escalation {sorted(r_flags)} requires final-r >= init-r, got {init_r} -> {final_r}"
+        )
 
 
 def append_entry(log_path: Path, args: argparse.Namespace) -> None:
@@ -44,6 +74,8 @@ def append_entry(log_path: Path, args: argparse.Namespace) -> None:
     for p in perspectives:
         if p not in VALID_PERSPECTIVES:
             raise ValueError(f"Invalid perspective id: {p}")
+
+    check_cross_field_invariants(args.init_d, args.final_d, args.init_r, args.final_r, escalations, perspectives)
 
     tags = [t.strip()[:32] for t in (args.friction_tags.split(",") if args.friction_tags else []) if t.strip()][:3]
 
@@ -99,6 +131,10 @@ def rotate_log(log_path: Path, keep: int) -> None:
 
 
 def main() -> int:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
     parser = argparse.ArgumentParser(description="Bounded metrics logger for dev-workflow Plan B evolution")
     parser.add_argument("--file", type=Path, default=DEFAULT_LOG, help="Override metrics jsonl path")
     sub = parser.add_subparsers(dest="cmd", required=True)
