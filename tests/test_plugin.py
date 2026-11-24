@@ -201,6 +201,118 @@ def check_plan_b_evolution() -> None:
     print("OK: review-lenses.md, retro-evolve, and bounded log-metric.py (log/tail/rotate) passed")
 
 
+
+
+def check_dsh_fusion_tools() -> None:
+    print("=== 9. Testing dsh-dev-hub fusion scripts (repo-recon, check-design, verify-basis, gen-report) ===")
+    import tempfile
+    for name in ("repo-recon.py", "check-design.py", "verify-basis.py", "gen-report.py"):
+        assert (PLUGIN_ROOT / "scripts" / name).is_file(), f"MISSING script: {name}"
+    with tempfile.TemporaryDirectory(prefix="dw_fusion_") as td:
+        repo = Path(td) / "repo"
+        (repo / "src" / "orders").mkdir(parents=True)
+        (repo / "node_modules" / "pkg").mkdir(parents=True)
+        (repo / "src" / "orders" / "payment_guard.py").write_text(
+            "def prevent_duplicate_charge(order_id):\n    return f'guard:{order_id}'\n",
+            encoding="utf-8",
+        )
+        (repo / "node_modules" / "pkg" / "payment_guard.js").write_text("duplicate_charge", encoding="utf-8")
+
+        # 9.1 repo-recon.py: IDF ranking + skip node_modules + intent detection
+        recon_res = subprocess.run(
+            [sys.executable, str(PLUGIN_ROOT / "scripts" / "repo-recon.py"), "--repo", str(repo), "--query", "修复 payment_guard 重复扣款 bug", "--json"],
+            capture_output=True, text=True, encoding="utf-8", check=True,
+        )
+        rdata = json.loads(recon_res.stdout)
+        assert rdata["intent"] == "bug", f"Expected bug intent, got {rdata['intent']}"
+        assert rdata["files"] and rdata["files"][0]["path"] == "src/orders/payment_guard.py"
+        assert all("node_modules" not in f["path"] for f in rdata["files"])
+
+        # 9.2 check-design.py: reject raw echo & accept valid design
+        bad_design = repo / "bad-design.md"
+        bad_design.write_text("# Design: Bad\n- **Mode:** Legacy\n## 1. Intent & Why\n修复 payment_guard 重复扣款 bug\n", encoding="utf-8")
+        bad_res = subprocess.run(
+            [sys.executable, str(PLUGIN_ROOT / "scripts" / "check-design.py"), str(bad_design), "--raw", "修复 payment_guard 重复扣款 bug"],
+            capture_output=True, text=True, encoding="utf-8", check=False,
+        )
+        assert bad_res.returncode == 1, "Expected check-design.py to fail on raw echo and missing sections"
+
+        good_design = repo / "docs" / "designs" / "2026-11-22-payment-guard-design.md"
+        good_design.parent.mkdir(parents=True, exist_ok=True)
+        good_design.write_text(
+            "# Design: Payment Guard\n- **Mode:** Legacy\n"
+            "## 1. Intent & Why\nEliminate double-charge race conditions caused by non-idempotent webhook retries.\n"
+            "## 2. Goals, Non-Goals & Anti-Goals\n- **Goals:** Idempotency key lock\n- **Non-Goals:** Billing UI\n"
+            "## 3. Current State & Isolation Seam\n- `src/orders/payment_guard.py`\n"
+            "## 4. Approaches Considered\nOption A selected.\n"
+            "## 5. Detailed Design & Interfaces\n- **Files to Modify (Scope Lock):** `src/orders/payment_guard.py`\n"
+            "## 6. Blast Radius, Compatibility & Rollback\n- **Rollback Strategy:** Revert commit.\n"
+            "## 7. Verification & Test Strategy\n- Characterization test + TDD.\n",
+            encoding="utf-8",
+        )
+        good_res = subprocess.run(
+            [sys.executable, str(PLUGIN_ROOT / "scripts" / "check-design.py"), str(good_design), "--raw", "修复 payment_guard 重复扣款 bug", "--json"],
+            capture_output=True, text=True, encoding="utf-8", check=True,
+        )
+        gdata = json.loads(good_res.stdout)
+        assert gdata["ok"] is True and len(gdata["design_basis_hash"]) == 16
+        assert "src/orders/payment_guard.py" in gdata["scope_files"]
+
+        # 9.3 verify-basis.py & gen-report.py in a real temp git repo
+        subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True)
+        subprocess.run(["git", "-C", str(repo), "config", "user.email", "test@example.com"], check=True)
+        subprocess.run(["git", "-C", str(repo), "config", "user.name", "Test"], check=True)
+        subprocess.run(["git", "-C", str(repo), "add", "src/orders/payment_guard.py"], check=True)
+        subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "init"], check=True)
+        base_sha = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+
+        # Stamp -> FRESH
+        subprocess.run(
+            [sys.executable, str(PLUGIN_ROOT / "scripts" / "verify-basis.py"), "stamp", "--repo", str(repo), "--design", str(good_design), "--cmd", "pytest"],
+            check=True, capture_output=True,
+        )
+        fresh = subprocess.run(
+            [sys.executable, str(PLUGIN_ROOT / "scripts" / "verify-basis.py"), "check", "--repo", str(repo), "--design", str(good_design)],
+            capture_output=True, text=True, check=False,
+        )
+        assert fresh.returncode == 0 and "FRESH" in fresh.stdout
+
+        # Modify code + add out-of-scope + noise -> STALE + report flags
+        (repo / "src" / "orders" / "payment_guard.py").write_text("def prevent_duplicate_charge(order_id): return True\n", encoding="utf-8")
+        (repo / "src" / "orders" / "extra.py").write_text("x = 1\n", encoding="utf-8")
+        (repo / ".DS_Store").write_text("noise", encoding="utf-8")
+        stale = subprocess.run(
+            [sys.executable, str(PLUGIN_ROOT / "scripts" / "verify-basis.py"), "check", "--repo", str(repo), "--design", str(good_design)],
+            capture_output=True, text=True, check=False,
+        )
+        assert stale.returncode == 2 and "STALE" in stale.stdout
+
+        subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+        subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "feat: guard"], check=True)
+        subprocess.run(
+            [sys.executable, str(PLUGIN_ROOT / "scripts" / "verify-basis.py"), "stamp", "--repo", str(repo), "--design", str(good_design), "--cmd", "pytest"],
+            check=True, capture_output=True,
+        )
+        rep = subprocess.run(
+            [sys.executable, str(PLUGIN_ROOT / "scripts" / "gen-report.py"), "--repo", str(repo), "--base", base_sha, "--head", "HEAD", "--design", str(good_design), "--depth", "D2 / R2", "--json"],
+            capture_output=True, text=True, encoding="utf-8", check=True,
+        )
+        rep_data = json.loads(rep.stdout)
+        assert ".DS_Store" in rep_data["noise_excluded"]
+        assert "src/orders/extra.py" in rep_data["out_of_scope"]
+        assert rep_data["verify_status"] == "FRESH"
+    for rel, gate_tag in [
+        ("skills/dev-workflow/SKILL.md", "[Recon Gate]"),
+        ("skills/brainstorming/SKILL.md", "[Recon Gate]"),
+        ("skills/save-design/SKILL.md", "[Design Gate]"),
+        ("skills/legacy-impl/SKILL.md", "[Verify Stamp]"),
+        ("skills/deep-review/SKILL.md", "[Verify Check]"),
+        ("skills/deep-review/SKILL.md", "[Report Gate]"),
+    ]:
+        assert gate_tag in (PLUGIN_ROOT / rel).read_text(encoding="utf-8"), f"Missing {gate_tag} in {rel}"
+    print("OK: dsh-dev-hub fusion scripts (repo-recon, check-design, verify-basis, gen-report) passed")
+
+
 def main() -> int:
     check_json_files()
     check_skills_frontmatter()
@@ -210,6 +322,7 @@ def main() -> int:
     check_pi_extension()
     check_codex_adaptation()
     check_plan_b_evolution()
+    check_dsh_fusion_tools()
     print("=== ALL STANDALONE CHECKS PASSED ===")
     return 0
 

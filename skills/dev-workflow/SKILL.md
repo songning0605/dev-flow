@@ -40,6 +40,14 @@ Before asking questions or proposing a workflow, run a **Fast Probe Cap (max 2-3
    - Reuse the existing directory if found; otherwise default to `docs/designs/YYYY-MM-DD-<topic>.md`.
 3. **PR & Test Conventions:**
    - Check for `.github/PULL_REQUEST_TEMPLATE.md` (or `.gitlab/merge_request_templates/`) and the project's test runner.
+4. **4-Class Intent & Deterministic Fast Recon *(Graded Gate: `D0/R0` exempt; `D >= 1`, `R >= 1`, or `Legacy Mode` mandatory)*:**
+   - Exempt when calibrated `D0` and `R0` (trivial 1-file/known-path edit).
+   - Otherwise, you **MUST** run `python <plugin-root>/scripts/repo-recon.py --repo . --query "<user request>"` and print one visible receipt line: `[Recon Gate] intent=<bug|feature|refactor|analysis> | scanned=<N> | scope=<dirs>` (emit `[Recon Gate] SKIP (no python)` **only** if Python 3 is genuinely unavailable).
+   - Route by classified intent:
+     - **`bug`**: route through `dev-workflow:systematic-debugging` root-cause reproduction before fixing.
+     - **`refactor`**: enforce behavior-invariant boundary and mandatory Characterization Tests before editing.
+     - **`analysis`**: read-only mode — stop after structured analysis; never edit code or create commits/PRs.
+     - **`feature`**: standard `Brainstorm -> Save Design -> Improve Design -> Impl -> Review`.
 
 Never ask the user to configure these unless the repo has conflicting conventions.
 
@@ -47,13 +55,13 @@ Never ask the user to configure these unless the repo has conflicting convention
 
 **Core Principle:** `Improve Design` and `Review` are **equally important, independent first-class dials**. A deep design does not eliminate code review, and a heavy review does not excuse a sloppy design. Calibrate both independently from the task and codebase signals.
 
-**Complexity is per-change, never per-count.** N repos / N files / N commits receiving the *same* small edit are N executions of **one** task: score the single deepest instance once and write `同构复制 xN` in the banner. Repo, file, and commit counts are execution volume — they never raise `D` or `R`.
+**Complexity is per-change, never per-count.** N independent repos / files / modules / commits receiving a *structurally identical* edit are N executions of **one** task: score the single deepest instance once and write `同构复制 xN` in the banner. Count alone is execution volume and does not raise `D` or `R` — **unless** the instances share cross-service contract coupling or ordered rollout/rollback dependencies.
 
 ### Axis A: Design Uncertainty -> `Improve Design` Depth (`D0-D3`)
 
 Score +1 for each signal present:
 - Requirements or acceptance boundaries are ambiguous, have multiple valid approaches, or depend on an external system whose behaviour cannot be inspected.
-- Change crosses module/service boundaries, alters public interfaces, or touches persistent schema/data formats. (Score the deepest single change inside one repo; a byte-identical edit replicated across N repos counts **once**.)
+- Change crosses module/service boundaries, alters public interfaces, or touches persistent schema/data formats. (Score the single deepest instance; an independent, structurally identical edit replicated across N targets counts **once**.)
 - Legacy Mode: target area has high coupling, hidden callers, or needs an isolation seam (Adapter/Facade/Flag).
 - Mistake in design would cause expensive rework or painful migration.
 
@@ -69,7 +77,7 @@ Score +1 for each signal present:
 Score +1 for each signal present:
 - Touches core business path, concurrency/async state, auth/security, or persistent storage/migrations.
 - Legacy Mode: target code lacks existing automated test coverage.
-- Expected diff spans multiple files/modules **within one repo** or modifies existing legacy functions in place (not isolated in a new module). The same small edit copied into N repos counts **once** — that is execution volume, not blast radius.
+- Expected diff spans multiple coupled files/modules or modifies existing legacy functions in place (not isolated in a new module). Independent, structurally identical edits replicated across N targets count **once** unless they require coordinated rollout or rollback.
 - Upfront design was intentionally kept brief (`D0` or `D1`) so correctness relies more on implementation review.
 
 | Score | Level | Behavior in `dev-workflow:deep-review` |
@@ -128,4 +136,4 @@ If running on one of these harnesses, read its tool mapping reference in `refere
 | "I need a repo CLAUDE.md to know how to run" | Run Step 1 Zero-Config Repo Detection and decide yourself. |
 | "Let me just jump to `writing-plans` right after brainstorming" | Route through `save-design` -> `improving-design` (if `D >= 1`) first. |
 | "This old function is ugly, let me clean it up while I'm here" | Strict Scope Lock. Note the smell in the ledger/report; do not pollute the diff. |
-| "涉及 5 个仓库，所以至少要 D3/R3" | 仓库数只放大执行量。同构复制按**单仓最深那一处**定级，其余 N-1 份只算重复劳动。 |
+| "This touches many repos/files/endpoints, so it must be at least D3/R3" | Count multiplies execution volume, not complexity. Score independent, structurally identical edits by the **single deepest instance** without stacking the remaining N-1 copies (escalate only when cross-target coupling or coordinated rollout/rollback exists). |

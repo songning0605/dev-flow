@@ -59,6 +59,12 @@ Before invoking `dev-workflow:deep-review`, you MUST print all 3 flags explicitl
 
 ## Handoff
 
+**Verification Stamp *(Graded Gate: `R0` exempt; `R >= 1` or `Legacy Mode` mandatory)*:** After final tests pass (`dev-workflow:verification-before-completion`), you **MUST** run:
+```bash
+python <plugin-root>/scripts/verify-basis.py stamp --repo . --design <DESIGN_PATH> --cmd "<test-command>"
+```
+and print one visible receipt line right after `[Impl Exit]`: `[Verify Stamp] combined=<16-hex> | design=<16-hex> | code=<16-hex>` (emit `[Verify Stamp] SKIP (no python)` **only** if Python 3 is unavailable).
+
 Once all tasks pass verification (`dev-workflow:verification-before-completion`), invoke `dev-workflow:deep-review` with:
 - `DESIGN_PATH`
 - `BASE_SHA` (branch merge-base) and `HEAD_SHA`

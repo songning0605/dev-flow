@@ -2,7 +2,9 @@
 
 - **Date:** YYYY-MM-DD
 - **Mode:** Legacy / Greenfield
+- **Intent:** `feature` | `bug` | `refactor` | `analysis`
 - **Calibrated Depth:** Design `D<0-3>` | Review `R<0-3>`
+- **Basis Hash:** `<populated by check-design.py>`
 - **Status:** Draft | Refined | Approved
 
 ## 1. Intent & Why

@@ -26,6 +26,10 @@ Turn brainstorming consensus into a durable, self-contained design document that
    - In **Legacy Mode**, `Current State & Seam`, `Blast Radius & Compatibility`, `Rollback Strategy`, and `Legacy Debt Explicitly Not Touched` are **mandatory**.
    - In **Greenfield Mode**, condense `Current State` to a 1-line note and focus on `Approaches`, `Interfaces`, and `Verification`.
 
+2.5. **Deterministic Design Quality Gate *(Graded Gate: `D0` exempt; `D >= 1` or `Legacy Mode` mandatory)*:**
+   - When `D >= 1` or in `Legacy Mode`, you **MUST** run `python <plugin-root>/scripts/check-design.py <design-doc-path> --raw "<original user request>"` before committing.
+   - Fix every reported `ERROR` (missing Legacy sections, leftover placeholders, or verbatim raw-prompt echo in `Intent & Why`), write the returned `design_basis_hash` into `Basis Hash`, and print one visible receipt line: `[Design Gate] PASS | hash=<16-hex> | scope_files=<N>` (emit `[Design Gate] SKIP (no python)` **only** if Python 3 is unavailable).
+
 3. **Commit the Design Doc (if stored in repo):**
    ```bash
    git add <design-doc-path>

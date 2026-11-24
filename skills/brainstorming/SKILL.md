@@ -47,7 +47,7 @@ first message. Read what they referred to and the code or material it
 connects to, and keep reading until you can explain how the relevant
 parts work today and what this change would touch.
 
-**Legacy Archeology (mandatory in existing repos):** Before proposing approaches, trace callers/callees, implicit entry points (cron jobs, message queues, hooks, config, middleware), existing tests, and recent `git log` history around the target area. Explicitly list hidden invariants and legacy debt that MUST NOT be touched (Non-Goals). Never ask what the
+**Legacy Archeology (mandatory in existing repos):** Before proposing approaches, trace callers/callees, implicit entry points (cron jobs, message queues, hooks, config, middleware), existing tests, and recent `git log` history around the target area. Explicitly list hidden invariants and legacy debt that MUST NOT be touched (Non-Goals). In Legacy Mode or when `D >= 1`, you **MUST** run `python <plugin-root>/scripts/repo-recon.py --repo . --query "<user request>"` first and print `[Recon Gate] intent=... | scanned=... | scope=...` (exempt only for `D0/R0`; print `[Recon Gate] SKIP (no python)` only if Python 3 is unavailable). Never ask what the
 project or their context already answers, or reopen what they've
 already decided.
 

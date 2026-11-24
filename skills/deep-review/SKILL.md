@@ -22,6 +22,7 @@ Escalation rules (non-negotiable):
 - If any 1 flag is `true`: `R0 -> R1`, `R1 -> R2`.
 - If 2+ flags are `true`: `R1 -> R2`, `R2 -> R3`.
 - Never dispatch an `R1` reviewer when `NO_CHAR_TEST=true`.
+- **Verification Freshness Check *(Graded Gate: `R0` exempt; `R >= 1` or `Legacy Mode` mandatory)*:** You **MUST** run `python <plugin-root>/scripts/verify-basis.py check --repo . --design <DESIGN_PATH>` and print `[Verify Check] FRESH | combined=<16-hex>` (or `STALE` -> re-run verification tests and re-stamp before concluding review; emit `[Verify Check] SKIP (no python)` **only** if Python 3 is unavailable).
 
 ## Step 2: Execute Review by Depth (`R0-R3`)
 
@@ -61,6 +62,12 @@ When creating the PR, always include a `## Design & Key Decisions` section in th
   - <Top 3-5 bullets distilled from the Design Doc's Decision Log & Impl Rulings>
 - **Blast Radius & Rollback:** <1-2 lines from Design Doc>
 ```
+
+**Delivery Report & Scope Audit *(Graded Gate: `R0` exempt; `R >= 1` or `Legacy Mode` mandatory)*:** When preparing PR or delivery handoff, you **MUST** run:
+```bash
+python <plugin-root>/scripts/gen-report.py --repo . --base <BASE_SHA> --head <HEAD_SHA> --design <DESIGN_PATH> --depth "D<x> / R<y>"
+```
+and print one visible receipt line: `[Report Gate] changed=<N> | out_of_scope=<M> | noise_excluded=<K> | verify=<FRESH|STALE>` (emit `[Report Gate] SKIP (no python)` **only** if Python 3 is unavailable).
 
 Verify every commit or the PR body clearly links the design so reviewers never have to reverse-engineer intent from raw diffs.
 
