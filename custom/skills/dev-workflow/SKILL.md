@@ -51,6 +51,19 @@ Before asking questions or proposing a workflow, run a **Fast Probe Cap (max 2-3
 
 Never ask the user to configure these unless the repo has conflicting conventions.
 
+## Step 1.5: Ambiguity Gate (Terse Reports) — Ask *Before* The First Edit
+
+If a one-line request can be read **both** as "this behavior must be forbidden / removed" and as "this capability must be added", you MUST ask exactly **one** question and wait for the answer before touching code. Fixed template (fill both readings with the concrete observable outcome):
+
+> 「你要的是「<reading A — capability to add, stated as an observable result>」还是「<reading B — capability to forbid / grey out / block>」？」
+
+Trigger test: the two readings imply **opposite directions** (add vs cut). Further signals:
+- A defect report normally names an expected state (「应为…」「不该…」「竟然/仍可…（不该）」); a message that only **describes the current state** and says 「也能 / 也要 / 支持…时也能」 is a **capability request**, not a defect.
+- Existing code or an old plan contradicting the request does NOT resolve the ambiguity — user words > current code > old plan docs. Never infer the requirement from what the code "seems to intend".
+- **Never pick silently because one reading is cheaper to implement** (e.g. "grey out the button" is 1 line while "allow the request" touches a shared fetch util). A cheaper diff is a reason to ask, not a licence to proceed.
+
+Asking once here costs one round-trip; guessing wrong costs a full implement → review → revert cycle.
+
 ## Step 2: Dual-Axis Auto-Calibration (`D0-D3` & `R0-R3`)
 
 **Core Principle:** `Improve Design` and `Review` are **equally important, independent first-class dials**. A deep design does not eliminate code review, and a heavy review does not excuse a sloppy design. Calibrate both independently from the task and codebase signals.
