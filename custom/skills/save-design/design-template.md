@@ -45,7 +45,14 @@ What problem are we solving and why now? What does success look like?
 - **New Behavior Tests (TDD RED->GREEN):** ...
 - **Manual / Integration Checks:** ...
 
-## 8. Decision Log *(Append-Only for PR Reviewers)*
+## 8. Open Questions *(Must Be Empty or Explicitly Deferred)*
+| Question | Status | Resolution / Deferral Reason |
+| :--- | :--- | :--- |
+| ... | Answered / Deferred-to-prototype / Deferred-to-impl | ... |
+
+An entry here means the design is **not** approved yet: either answer it in one round of questions, or register a deferral with the concrete probe (`Deferred-to-prototype` — look/feel questions only a throwaway build settles) or the later gate that will decide it (`Deferred-to-impl`). "Everyone knows" / "obvious" is not a resolution.
+
+## 9. Decision Log *(Append-Only for PR Reviewers)*
 | Date | Source | Decision / Trade-off | Rationale |
 | :--- | :--- | :--- | :--- |
 | YYYY-MM-DD | Brainstorm | ... | ... |

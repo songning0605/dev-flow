@@ -25,6 +25,7 @@ Turn brainstorming consensus into a durable, self-contained design document that
    - Keep it crisp and concrete: real file paths, real function/interface names, exact legacy callers discovered during archeology, and explicit Non-Goals.
    - In **Legacy Mode**, `Current State & Seam`, `Blast Radius & Compatibility`, `Rollback Strategy`, and `Legacy Debt Explicitly Not Touched` are **mandatory**.
    - In **Greenfield Mode**, condense `Current State` to a 1-line note and focus on `Approaches`, `Interfaces`, and `Verification`.
+   - `Open Questions` must be empty (or every row explicitly `Deferred-to-prototype` / `Deferred-to-impl` with the probe or gate named) **before** `Status: Approved`. Anything still only in your head is an unstated assumption, not a design.
 
 2.5. **Deterministic Design Quality Gate *(Graded Gate: `D0` exempt; `D >= 1` or `Legacy Mode` mandatory)*:**
    - When `D >= 1` or in `Legacy Mode`, you **MUST** run `python <plugin-root>/scripts/check-design.py <design-doc-path> --raw "<original user request>"` before committing.
