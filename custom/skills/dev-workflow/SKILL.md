@@ -51,18 +51,26 @@ Before asking questions or proposing a workflow, run a **Fast Probe Cap (max 2-3
 
 Never ask the user to configure these unless the repo has conflicting conventions.
 
-## Step 1.5: Ambiguity Gate (Terse Reports) — Ask *Before* The First Edit
+## Step 1.5: Ask Gate (Terse Reports) — Before The First Edit, Never After Shipping
 
-If a one-line request can be read **both** as "this behavior must be forbidden / removed" and as "this capability must be added", you MUST ask exactly **one** question and wait for the answer before touching code. Fixed template (fill both readings with the concrete observable outcome):
+Classify the request's shape first, then pick **one** of two modes. Do not implement before the active mode is settled:
+
+**Mode A — Direction ambiguity → ONE question, then wait.**
+Trigger: the one-line request reads both as "this behavior must be forbidden / removed" and as "this capability must be added" (opposite directions: add vs cut). Template (both readings must state the concrete observable outcome):
 
 > 「你要的是「<reading A — capability to add, stated as an observable result>」还是「<reading B — capability to forbid / grey out / block>」？」
 
-Trigger test: the two readings imply **opposite directions** (add vs cut). Further signals:
-- A defect report normally names an expected state (「应为…」「不该…」「竟然/仍可…（不该）」); a message that only **describes the current state** and says 「也能 / 也要 / 支持…时也能」 is a **capability request**, not a defect.
-- Existing code or an old plan contradicting the request does NOT resolve the ambiguity — user words > current code > old plan docs. Never infer the requirement from what the code "seems to intend".
-- **Never pick silently because one reading is cheaper to implement** (e.g. "grey out the button" is 1 line while "allow the request" touches a shared fetch util). A cheaper diff is a reason to ask, not a licence to proceed.
+- A defect report names an expected state (「应为…」「不该…」「竟然/仍可…」); a message that only **describes the current state** and says 「也能 / 也要 / 支持…时也能」 is a **capability request**, not a defect.
+- Existing code or an old plan contradicting the request does **not** resolve the ambiguity — user words > current code > old plan docs. Never infer the requirement from what the code "seems to intend".
+- **Never pick silently because one reading is cheaper to implement** (1-line grey-out vs touching a shared util). A cheaper diff is a reason to ask, not a licence to proceed.
 
-Asking once here costs one round-trip; guessing wrong costs a full implement → review → revert cycle.
+**Mode B — Loose capability request → ONE ROUND (the frontier), not one question at a time.**
+Trigger: direction is unambiguous, but acceptance boundaries are empty or under-specified (no expected state, no scope). In a single round ask every question whose prerequisites are already settled — **never** one that depends on an answer you have not heard — typically 3-8: observable acceptance, explicit out-of-scope, consumer/timing, failure behaviour, rollout & rollback. Later rounds build on earlier answers. Do not drip-feed across turns, and do not start coding "while waiting".
+Session ends when the frontier is empty: every branch visited, nothing left as an unstated assumption. Anything still unsettled at that point belongs in the design doc's **Open Questions**, not in your head.
+
+**Ungrillable → prototype, do not ask.** If the blocker is look / feel / layout (「一个长表单还是三页？」「这个交互手感如何」), no amount of interviewing settles it: build the throwaway version (labs / react-playground / dumi / plain mock), look at it, then answer in one line. Never escalate visual/UX ambiguity into design depth (D2/D3) as a substitute for a prototype.
+
+Costed once: one round-trip beats a full implement → review → revert cycle.
 
 ## Step 2: Dual-Axis Auto-Calibration (`D0-D3` & `R0-R3`)
 
